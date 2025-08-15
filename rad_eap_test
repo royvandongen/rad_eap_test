@@ -574,6 +574,32 @@ function generate_config()
 
   echo "  eap=$EAP" >> $CONF
 
+  if [[ "$EAP" = "TLS" || "$EAP" = "PEAP" || "$EAP" = "TTLS" ]]
+  then
+    case "$TLSVER" in
+      1.0)
+        echo "  phase1=\"tls_disable_tlsv1_0=0 tls_disable_tlsv1_1=1 tls_disable_tlsv1_2=1 tls_disable_tlsv1_3=1\"" >> $CONF
+        ;;
+      1.1)
+        echo "  phase1=\"tls_disable_tlsv1_0=1 tls_disable_tlsv1_1=0 tls_disable_tlsv1_2=1 tls_disable_tlsv1_3=1\"" >> $CONF
+        ;;
+      1.2)
+        echo "  phase1=\"tls_disable_tlsv1_0=1 tls_disable_tlsv1_1=1 tls_disable_tlsv1_2=0 tls_disable_tlsv1_3=1\"" >> $CONF
+        ;;
+      1.3)
+        echo "  phase1=\"tls_disable_tlsv1_0=1 tls_disable_tlsv1_1=1 tls_disable_tlsv1_2=1 tls_disable_tlsv1_3=0\"" >> $CONF
+        ;;
+      auto|"")
+        # Let OpenSSL negotiate best available
+        echo "  phase1=\"\"" >> $CONF
+        ;;
+      *)
+      echo "Unknown TLS version: $TLSVER"
+      exit 1
+      ;;
+    esac
+  fi
+
   if [[ "$EAP" = "PEAP" || "$EAP" = "TTLS" ]]
   then
     echo "  pairwise=CCMP" >> $CONF
@@ -673,6 +699,7 @@ Parameters :
 -X <warn_days> - check certificate expiry (whole certificate chain may be retrieved by eapol_test, there is a certain logic that tries to determine the end server cert which is checked for expiry)
 -6 - force use of IPv6 when using DNS name as RADIUS server address
 -4 - use IPv4 when using DNS name as RADIUS server address (this is the default, but the option exists for compatibility)
+-Y <version> - TLS Version ( default(auto) | 1.0 |  1.1 | 1.2 | 1.3 )
 -h - show this message
 " >&2
   exit 1
@@ -921,7 +948,7 @@ function check_settings()
 # ===========================================================================================
 function process_options()
 {
-  while getopts "H:P:S:u:p:t:m:s:e:t:M:i:d:j:k:a:A:l:L:1:2:x:vcNO:I:CTfhbB:n:gVX:64" opt
+  while getopts "H:P:S:u:p:t:m:s:e:t:M:i:d:j:k:a:A:l:L:1:2:x:vcNO:I:CTfhbB:n:gVX:64Y:" opt
   do
     case "$opt" in
       H) ADDRESS=$OPTARG;;
@@ -961,6 +988,7 @@ function process_options()
       d) DOMAIN_MATCH="$OPTARG";;
       6) IPV6="YES";;
       4) IPV6="NO";;
+      Y) TLSVER="$OPTARG";;
       h) usage;;
       \?) usage;;
     esac
